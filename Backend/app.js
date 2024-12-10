@@ -3,17 +3,18 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const tripRoutes = require('./routes/trip'); // Rutas de trips
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
 const { makeExecutableSchema } = require('@graphql-tools/schema');
 const bodyParser = require('body-parser');
+const path = require('path');
 
-// Modelos para GraphQL
-const Driver = require('./models/Driver');
-const Bus = require('./models/Bus');
-const Trip = require('./models/Trip');
-
+// Crear la aplicación de Express
 const app = express();
+
+// Configurar archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración de CORS
 const corsOptions = {
@@ -29,16 +30,17 @@ app.use(express.json());
 // Configuración de rutas REST
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/trips', tripRoutes);
 
 // Configuración de Mongoose
 mongoose.set('strictQuery', true);
 const URI = 'mongodb+srv://sergiomesa01:nOwlqJoGuKxjgEF2@training.m1grr.mongodb.net/?retryWrites=true&w=majority&appName=training';
-mongoose.connect(URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose
+    .connect(URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB connected'))
-    .catch(err => console.error(err));
+    .catch((err) => console.error(err));
 
 // --- Configuración de Apollo Server ---
-// Definir el esquema de GraphQL
 const typeDefs = `
     type Driver {
         id: ID!
@@ -89,7 +91,6 @@ const typeDefs = `
     }
 `;
 
-// Resolver las consultas y mutaciones
 const resolvers = {
     Query: {
         drivers: async () => await Driver.find(),
@@ -97,7 +98,6 @@ const resolvers = {
         trips: async () => await Trip.find().populate('bus driver'),
     },
     Mutation: {
-        // Conductores
         createDriver: async (_, { cedula, name, license }) => {
             const newDriver = new Driver({ cedula, name, license });
             await newDriver.save();
@@ -118,7 +118,6 @@ const resolvers = {
             return updatedDriver;
         },
 
-        // Buses
         createBus: async (_, { plate, driver, departureCity, arrivalCity }) => {
             const driverExists = await Driver.findById(driver);
             if (!driverExists) throw new Error('Conductor no encontrado');
@@ -142,7 +141,6 @@ const resolvers = {
             return updatedBus;
         },
 
-        // Viajes
         createTrip: async (_, { origin, destination, departureTime, bus, driver }) => {
             const busExists = await Bus.findById(bus);
             const driverExists = await Driver.findById(driver);
@@ -180,6 +178,9 @@ apolloServer.start().then(() => {
     app.use('/graphql', bodyParser.json(), expressMiddleware(apolloServer));
     console.log('Apollo Server corriendo en http://localhost:5000/graphql');
 });
+
+// Configuración para servir archivos estáticos de reservas
+app.use('/reservations', express.static(path.join(__dirname, 'reservations')));
 
 // Configuración del puerto
 const PORT = process.env.PORT || 5000;
