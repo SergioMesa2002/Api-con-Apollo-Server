@@ -16,6 +16,9 @@ const app = express();
 // Configurar archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
+const cors1 = require('cors');
+app.use(cors({ origin: 'https://dashboard.render.com' }));
+
 // Configuración de CORS
 const corsOptions = {
     origin: 'http://localhost:3000',
